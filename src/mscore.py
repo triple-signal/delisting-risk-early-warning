@@ -56,6 +56,8 @@ def extract_items(fs):
         hit = part[part["account_id"].isin(ids)]
         if hit.empty:
             hit = part[part["_name"].isin([_clean_name(n) for n in names])]
+        if hit.empty and item == "감가상각비":
+            hit = part[part["_name"].str.contains("감가상각비", na=False)]
         if hit.empty:
             rows[item] = {"당기": np.nan, "전기": np.nan}
         else:

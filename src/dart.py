@@ -33,7 +33,6 @@ def get_corp_codes(refresh=False):
         root = ET.fromstring(z.read("CORPCODE.xml"))
     rows = [{c.tag: (c.text or "").strip() for c in item} for item in root.iter("list")]
     df = pd.DataFrame(rows)
-    df = df[df["stock_code"] != ""].reset_index(drop=True)  # 상장사만 남김
 
     DATA_DIR.mkdir(exist_ok=True)
     df.to_csv(path, index=False, encoding="utf-8-sig")
