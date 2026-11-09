@@ -19,6 +19,8 @@ QUOTA = {                                # 폐지 사유별 추출 수 (합 8개
     "부실:보고서미제출": 1,
 }
 SEED = 42
+LOOKBACK = 3          # 폐지 연도 직전 몇 개 사업연도까지 거슬러 찾을지
+FIRST_YEAR = 2018     # 재무제표 기간 시작 (research_design.md 2절)
 
 
 def load_financials(corp_code, year):
@@ -35,10 +37,26 @@ def load_financials(corp_code, year):
     return fs
 
 
-def event_years(delist_date):
-    """사건 직전 2개 회계연도: 폐지일자 이전에 끝난 사업연도 중 가장 최근 2개 (12월 결산 가정)"""
-    y = delist_date.year
-    return [y - 2, y - 1]
+def filing_date(fs):
+    """접수번호(rcept_no) 앞 8자리 = 공시 접수일"""
+    return pd.to_datetime(str(fs["rcept_no"].iloc[0])[:8], format="%Y%m%d")
+
+
+def event_years(corp_code, delist_date):
+    """사건 직전 2개 회계연도: 폐지일 이전에 공시된 사업보고서 중 가장 최근 2개.
+    폐지 연도 직전 LOOKBACK개 사업연도 안에서 찾는다. 반환: (사업연도 목록(오래된 순), 탈락 사유 dict)"""
+    found, skipped = [], {}
+    for y in range(delist_date.year - 1, delist_date.year - 1 - LOOKBACK, -1):
+        if y < FIRST_YEAR or len(found) == 2:
+            break
+        fs = load_financials(corp_code, y)
+        if fs.empty:
+            skipped[y] = "재무제표 없음"
+        elif filing_date(fs) >= delist_date:
+            skipped[y] = f"폐지 후 공시({filing_date(fs).date()})"
+        else:
+            found.append(y)
+    return sorted(found), skipped
 
 
 def firm_year(corp_code, year):
@@ -56,7 +74,7 @@ def firm_year(corp_code, year):
 
 
 def pick_events():
-    """사유별 할당(QUOTA)만큼 무작위로 고르되, 직전 2개 연도 재무제표가 모두 있는 기업만 채택"""
+    """사유별 할당(QUOTA)만큼 무작위로 고르되, 폐지 전 공시된 사업보고서가 2개 있는 기업만 채택"""
     corps = get_corp_codes()
     corps = corps[corps["stock_code"].fillna("") != ""][["stock_code", "corp_code"]]
     ev = load_delisted()
@@ -70,20 +88,14 @@ def pick_events():
         for _, r in pool.iterrows():
             if count == n:
                 break
-            years = event_years(r["폐지일자"])
-            missing = [y for y in years if load_financials(r["corp_code"], y).empty]
-            if missing:
+            years, skipped = event_years(r["corp_code"], r["폐지일자"])
+            if len(years) < 2:
                 dropped.append({"회사명": r["회사명"], "분류": reason,
-                                "폐지일자": r["폐지일자"].date(), "재무제표 없음": missing})
+                                "폐지일자": r["폐지일자"].date(), "제외 연도": skipped})
                 continue
             picked.append(r)
             count += 1
     return pd.DataFrame(picked).reset_index(drop=True), pd.DataFrame(dropped)
-
-
-def filing_date(fs):
-    """접수번호(rcept_no) 앞 8자리 = 공시 접수일"""
-    return pd.to_datetime(str(fs["rcept_no"].iloc[0])[:8], format="%Y%m%d")
 
 
 def prior_mismatch(corp_code, year):
@@ -99,18 +111,18 @@ def prior_mismatch(corp_code, year):
 
 
 def run_pilot(sample):
-    """선정 기업별로 직전 2개 연도 결과를 한 표로 정리. 자료 점검 열 2개를 함께 붙인다"""
+    """선정 기업별로 직전 2개 연도 결과를 한 표로 정리. 자료 점검 열을 함께 붙인다"""
     rows = []
     for _, r in sample.iterrows():
-        for k, y in enumerate(event_years(r["폐지일자"])):
+        years, skipped = event_years(r["corp_code"], r["폐지일자"])
+        for k, y in enumerate(years):
             res = firm_year(r["corp_code"], y)
-            fs = load_financials(r["corp_code"], y)
-            filed = filing_date(fs)
+            filed = filing_date(load_financials(r["corp_code"], y))
             row = {"시장": r["시장"], "회사명": r["회사명"], "분류": r["분류"],
                    "폐지일자": r["폐지일자"].date(), "사업연도": y, "시점": f"t-{2 - k}"}
             row.update(res.to_dict())
             row["공시일"] = filed.date()
-            row["폐지 후 공시"] = filed >= r["폐지일자"]
+            row["건너뛴 연도"] = ", ".join(f"{yy}:{why}" for yy, why in skipped.items()) or "-"
             row["전기 불일치"] = prior_mismatch(r["corp_code"], y)
             rows.append(row)
     return pd.DataFrame(rows)
