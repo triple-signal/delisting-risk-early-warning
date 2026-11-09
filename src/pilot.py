@@ -126,3 +126,84 @@ def run_pilot(sample):
             row["전기 불일치"] = prior_mismatch(r["corp_code"], y)
             rows.append(row)
     return pd.DataFrame(rows)
+
+
+# ---------------- 대조군 매칭 ----------------
+# [결정 2026-11-09] 같은 시장 · 업종코드 앞 2자리(중분류) 같음 · t-2 자산총계가 가장 가까운 기업 1:1
+# 후보: 현재 유가증권/코스닥 상장 + KIND 폐지 목록(2018~2026)에 없음 + 해당 2개 연도 사업보고서 있음
+MARKET_CLS = {"유가증권": "Y", "코스닥": "K"}
+FINANCE_KSIC = ("64", "65", "66")   # 금융 및 보험업 (M-Score 적용 부적절, 처리 방법 [미정])
+
+
+def match_controls(sample):
+    """사건 기업마다 정상기업 1개를 비복원으로 매칭. 반환: 매칭표(사건 기업별 1행)"""
+    from src.dart import get_company_info, get_total_assets
+
+    info = get_company_info([])  # 저장된 기업개황
+    info["ksic2"] = info["induty_code"].fillna("").str[:2]
+    delisted_codes = set(load_delisted()["종목코드"])
+    used, rows = set(), []
+
+    for _, ev in sample.iterrows():
+        me = info[info["corp_code"] == ev["corp_code"]].iloc[0]
+        years, _ = event_years(ev["corp_code"], ev["폐지일자"])
+        base = years[0]  # t-2
+        ev_assets = extract_items(load_financials(ev["corp_code"], base)).loc["자산총계", "당기"]
+
+        pool = info[(info["corp_cls"] == MARKET_CLS[ev["시장"]])
+                    & (info["ksic2"] == me["ksic2"])
+                    & (info["acc_mt"] == me["acc_mt"])
+                    & (~info["stock_code"].isin(delisted_codes))
+                    & (~info["corp_code"].isin(used))]
+        assets = get_total_assets(pool["corp_code"], base).dropna()
+        assets = assets[assets > 0]
+        gap = (np.log(assets / ev_assets)).abs().sort_values()
+
+        chosen = None
+        for cc in gap.index:  # 규모가 가까운 순서로, 2개 연도 재무제표가 모두 있는 첫 기업
+            if all(not load_financials(cc, y).empty for y in years):
+                chosen = cc
+                break
+        row = {"사건 기업": ev["회사명"], "시장": ev["시장"], "업종코드": me["induty_code"],
+               "금융업": me["ksic2"] in FINANCE_KSIC, "사업연도": years,
+               "사건 자산총계(t-2)": ev_assets, "후보 수": len(gap)}
+        if chosen:
+            used.add(chosen)
+            ct = info[info["corp_code"] == chosen].iloc[0]
+            row.update({"대조군 corp_code": chosen, "대조군 회사명": ct["corp_name"],
+                        "대조군 업종코드": ct["induty_code"],
+                        "대조군 자산총계(t-2)": assets[chosen],
+                        "규모 비율": assets[chosen] / ev_assets})
+        rows.append(row)
+
+    m = pd.DataFrame(rows)
+    m.insert(0, "대조군 ID", [f"C{i + 1:02d}" for i in range(len(m))])
+    # 현재 상장 기업 실명은 data/에만 저장 (GitHub 미업로드, research_design.md 9절)
+    m.to_csv(DATA_DIR / "pilot_control_map.csv", index=False, encoding="utf-8-sig")
+    return m
+
+
+def run_controls(matches):
+    """대조군의 M-Score·발생액. 회사명 대신 대조군 ID로만 표시"""
+    rows = []
+    for _, m in matches.dropna(subset=["대조군 corp_code"]).iterrows():
+        for k, y in enumerate(m["사업연도"]):
+            res = firm_year(m["대조군 corp_code"], y)
+            row = {"대조군 ID": m["대조군 ID"], "짝 사건 기업": m["사건 기업"], "시장": m["시장"],
+                   "사업연도": y, "시점": f"t-{2 - k}"}
+            row.update(res.to_dict())
+            row["전기 불일치"] = prior_mismatch(m["대조군 corp_code"], y)
+            rows.append(row)
+    return pd.DataFrame(rows)
+
+
+def compare(result, controls):
+    """사건군과 대조군의 경보 비율 비교 (기업 단위: 2개 연도 중 한 번이라도 경보)"""
+    ev = result.groupby("회사명", sort=False)["경보"].any()
+    ct = controls.groupby("대조군 ID", sort=False)["경보"].any()
+    return pd.DataFrame({
+        "기업 수": [len(ev), len(ct)],
+        "경보 기업 수": [int(ev.sum()), int(ct.sum())],
+        "경보 비율": [ev.mean(), ct.mean()],
+        "M-Score 중앙값": [result["M-Score"].median(), controls["M-Score"].median()],
+    }, index=["사건군", "대조군"])
