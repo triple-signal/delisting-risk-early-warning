@@ -1,4 +1,4 @@
-"""파일럿 (research_design.md 8절): 사건 기업의 사건 직전 2개 회계연도 M-Score·발생액"""
+"""파일럿 (research_design.md 8절): M-Score 산출값을 실제 상장폐지 결과·대조군과 비교해 검증. 임근영 담당"""
 import time
 
 import numpy as np
@@ -137,7 +137,7 @@ FINANCE_KSIC = ("64", "65", "66")   # 금융 및 보험업 (M-Score 적용 부�
 
 def match_controls(sample):
     """사건 기업마다 정상기업 1개를 비복원으로 매칭. 반환: 매칭표(사건 기업별 1행)"""
-    from src.dart import get_company_info, get_total_assets
+    from src.company import get_company_info, get_total_assets
 
     info = get_company_info([])  # 저장된 기업개황
     info["ksic2"] = info["induty_code"].fillna("").str[:2]
