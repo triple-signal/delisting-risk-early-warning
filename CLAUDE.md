@@ -2,7 +2,8 @@
 
 한국회계학회 제6회 대학생 회계경진대회(세션 2: AI 활용 회계분석) 출품 연구의 분석 코드 레포다.
 팀 트리플 시그널(숭실대). 주제: 숫자·텍스트·감사 신호를 융합한 상장폐지 회피 위험 조기경보 모형.
-대회가 끝날 때까지 Private 레포로 유지하고, 이후 포트폴리오로 공개할 예정이다.
+대회 종료 후 팀원 동의를 받아 공개 레포로 전환했고(2026-11-10), 포트폴리오로 계속 개발한다.
+이 파일은 AI 코딩 도구(Claude Code)가 작업할 때 읽는 안내서다.
 
 ## 가장 중요한 규칙
 
@@ -12,9 +13,9 @@
 3. `[미정]` 항목은 팀 결정 전까지 사용하지 않는다. 결정되면 research_design.md를 먼저 고치고 코드에 반영한다.
 4. 코드를 짜면서 새로 정한 내용은 research_design.md에 `[구현]`(팀 확인 필요)으로 기록한다.
 
-## 사용자에 대해
+## 작업 안내 방식
 
-- 공인회계사 시험 합격자로 회계·감사 지식은 깊지만, **Python·Git·VS Code는 입문 단계**다.
+- 연구 설계와 회계·감사 판단은 팀(공인회계사 시험 합격자 포함)이 하고, AI는 구현과 자료 점검을 맡는다.
 - 답변은 한국어로, 단계를 번호로 나눠 하나씩 안내한다. 명령어는 어디(터미널/편집창/노트북)에서 실행하는지 밝힌다.
 - 코드를 고칠 때는 일부 줄만 고치라고 하지 말고 **함수 단위로 통째로** 바꾼다 (들여쓰기 실수 방지).
 - 회계 개념과 연결해서 설명하면 이해가 빠르다.
@@ -27,7 +28,7 @@
 - 라이브러리: pandas, matplotlib, openpyxl, ipykernel, requests, python-dotenv (`requirements.txt`)
 - 노트북 커널은 `.venv` 선택. 노트북은 `notebooks/` 안에서 `sys.path.insert(0, "..")` 후 `from src... import`
 - `src` 파일을 고치면 노트북 Restart 필요
-- GitHub: Organization `triple-signal` / 레포 `delisting-risk-early-warning` (Private)
+- GitHub: Organization `triple-signal` / 레포 `delisting-risk-early-warning` (Public, 2026-11-10 전환)
 
 ## 절대 GitHub에 올리면 안 되는 것
 
@@ -44,7 +45,7 @@ src/mscore.py             Beneish M-Score 8변수: extract_items(), compute_msco
 src/labels.py             KIND 상장폐지 사유 분류: load_delisted()
 src/pilot.py              파일럿: pick_events(), run_pilot(), match_controls(), run_controls(), compare()
 notebooks/01_collect_test.ipynb   수집 테스트
-notebooks/02_mscore_test.ipynb    M-Score 테스트 (삼성전자 2025)
+notebooks/02_mscore_test.ipynb    M-Score 계산 테스트 (대형 상장사 1곳)
 notebooks/03_pilot_mscore.ipynb   파일럿: 사건 8개 + 대조군 8개 M-Score 비교
 data/corp_codes.csv       DART 전체 기업 목록 119,949개 (상장폐지 기업 포함)
 data/company_info.csv     기업개황 4,013개 (시장구분·업종코드·결산월, 2026-11-09 수집)
@@ -61,7 +62,7 @@ KIND 엑셀은 실제로는 EUC-KR 인코딩 HTML 표다 (`labels.py`의 `_read_
 완료
 - 개발 환경, GitHub 팀 레포, DART 인증키
 - 재무제표 수집 함수 (연결 우선, 없으면 별도)
-- M-Score 계산 모듈. 삼성전자 2025: M = −2.63 (경보 없음). 감가상각비는 주석에만 있어 DEPI 중립값 대체
+- M-Score 계산 모듈. 대형 상장사 1곳으로 동작 확인 (감가상각비가 주석에만 있으면 DEPI 중립값 대체됨)
 - 상장폐지 라벨 분류: 431건 중 사건 156건 (유가증권 22, 코스닥 134), 보류 21건
 - 파일럿 (research_design.md 8절, 2026-11-09)
   - 사건 기업 8개: 폐지 2021~2025년, 사유별 무작위(시드 42) `[가정]`
