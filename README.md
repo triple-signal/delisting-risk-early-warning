@@ -53,14 +53,23 @@ DART·KIND 자동 수집 → 세 신호 산출 → 표준화 → 해석 가능�
 
 표본이 작아 통계적 결론은 아니며, 방향성과 파이프라인 동작을 확인한 단계입니다. 파일럿에서 드러난 한계(극단값, 감가상각비 미검출, 사건 시점 정의)와 대응은 [research_design.md 8절](docs/research_design.md)에 정리했습니다.
 
+## 팀과 역할
+
+| 구분 | 내용 | 해당 코드 |
+|---|---|---|
+| 팀 공동 작업 (실무 주도: 강태욱) | 연구 설계 문서 작성 · KIND 상장폐지 자료 수집·분류(431건 → 부실·회계 관련 156건) · OpenDART 재무데이터 수집, M-Score 산출 코드, 계정명 표준화·결측 대체 내역 기록 | `docs/research_design.md`, `src/dart.py`, `src/labels.py`, `src/mscore.py` |
+| 임근영 | M-Score 산출값을 실제 상장폐지 결과·대조군과 비교해 신뢰도·유효성 검증 · 재무 신호에 공시 텍스트·감사 정보 신호를 더해 표준화하고 통계·머신러닝으로 합쳐 종합 위험점수를 매기는 기준 개발 · 기업별 신호 기여도 표시 방식 설계 · 사건 발생 이전 정보만 쓰는 시점 정렬 원칙 수립 · 팀 의견이 갈렸을 때 세 신호 융합 방향 제안 | `src/pilot.py`, `src/company.py`, `src/audit.py`, 이후 표준화·융합 모듈 |
+
 ## 레포 구조
 
 ```
 docs/research_design.md          연구 설계 기준 문서 (결정·가정·미정 사항과 이력)
-src/dart.py                      OpenDART API 수집 (재무제표, 기업개황, 다중회사 자산총계)
+src/dart.py                      OpenDART API 수집: 기업 목록, 재무제표
 src/labels.py                    KIND 상장폐지 사유 분류 (부실 사건 / 보류 / 제외)
 src/mscore.py                    Beneish M-Score 계산 (IFRS 계정ID 우선 탐색, 결측 중립값 기록)
-src/pilot.py                     파일럿: 사건 기업 선정, 대조군 매칭, 비교
+src/pilot.py                     파일럿: 사건 기업 선정, 시점 정렬, 대조군 매칭, 검증
+src/company.py                   기업개황(시장·업종·결산월), 다중회사 자산총계 수집
+src/audit.py                     감사 신호(감사인 교체, 감사시간·보수 변화)와 감사보고서 강조사항 수집·정형화
 notebooks/                       테스트·파일럿 노트북
 ```
 

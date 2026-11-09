@@ -40,10 +40,12 @@
 
 ```
 docs/research_design.md   연구 설계 기준 문서
-src/dart.py               OpenDART API: get_corp_codes(), get_financials(), get_company_info(), get_total_assets()
-src/mscore.py             Beneish M-Score 8변수: extract_items(), compute_mscore()
-src/labels.py             KIND 상장폐지 사유 분류: load_delisted()
-src/pilot.py              파일럿: pick_events(), run_pilot(), match_controls(), run_controls(), compare()
+src/dart.py               [공동] OpenDART API: get_corp_codes(), get_financials()
+src/mscore.py             [공동] Beneish M-Score 8변수: extract_items(), compute_mscore()
+src/labels.py             [공동] KIND 상장폐지 사유 분류: load_delisted()
+src/pilot.py              [임근영] 파일럿 검증: pick_events(), run_pilot(), match_controls(), run_controls(), compare()
+src/company.py            [임근영] 기업개황·다중회사 자산총계: get_company_info(), get_total_assets()
+src/audit.py              [임근영] 감사 신호·강조사항: audit_vars()
 notebooks/01_collect_test.ipynb   수집 테스트
 notebooks/02_mscore_test.ipynb    M-Score 계산 테스트 (대형 상장사 1곳)
 notebooks/03_pilot_mscore.ipynb   파일럿: 사건 8개 + 대조군 8개 M-Score 비교
@@ -87,6 +89,17 @@ KIND 엑셀은 실제로는 EUC-KR 인코딩 HTML 표다 (`labels.py`의 `_read_
 1. 위 팀 결정 반영
 2. 파일럿 확대 또는 전체 사건 156건으로 M-Score 산출 (범위는 먼저 묻는다)
 3. 이후 텍스트·감사 신호 추가, 융합 모형
+
+## 역할 분담과 코드 소유 (이후 모든 작업과 기록은 이 구분을 따른다)
+
+- 팀 공동 작업 (실무 주도: 강태욱): 연구 설계 문서, KIND 상장폐지 수집·분류, OpenDART 재무데이터 수집, M-Score 산출 코드, 계정명 표준화·결측 대체 기록
+  → `src/dart.py`, `src/labels.py`, `src/mscore.py`
+- 임근영 담당: M-Score 유효성 검증, 텍스트·감사 신호 추가와 표준화·융합 종합 위험점수 기준 개발, 기업별 신호 기여도 표시 방식, 시점 정렬 원칙, 세 신호 융합 방향 제안
+  → `src/pilot.py`, `src/company.py`, `src/audit.py`, 이후 새 모듈(표준화·융합 등)
+- **공동 작업 파일은 고치지 않는다.** 필요한 기능은 임근영 담당의 별도 모듈에 만들고 공동 모듈을 import해서 쓴다.
+  공동 파일을 꼭 고쳐야 하면 먼저 묻는다
+- 임근영 담당 작업은 별도 커밋으로 올리고, 커밋 메시지에 담당 영역이 드러나게 쓴다
+- README의 "팀과 역할" 표가 공개용 기준이다. 팀원 기여도 평가는 공개 문서에 쓰지 않는다
 
 ## 작업 방식
 
