@@ -46,6 +46,7 @@ src/labels.py             [공동] KIND 상장폐지 사유 분류: load_deliste
 src/pilot.py              [임근영] 파일럿 검증: pick_events(), run_pilot(), match_controls(), run_controls(), compare()
 src/company.py            [임근영] 기업개황·다중회사 자산총계: get_company_info(), get_total_assets()
 src/audit.py              [임근영] 감사 신호·강조사항: audit_vars()
+src/disclosure.py         [임근영] 사업보고서 원문 텍스트: fetch_document(), mdna(), text_change(), sanction_litigation(), text_vars()
 src/standardize.py        [임근영] 표준화: abnormal(), winsorize(), zscore(), fill_missing(), standardize()
 src/fusion.py             [임근영] 융합·평가: time_split(), fit_logit(), risk_score(), contributions(), evaluate(), boosting_check()
 notebooks/01_collect_test.ipynb   수집 테스트
@@ -54,6 +55,8 @@ notebooks/03_pilot_mscore.ipynb   파일럿: 사건 8개 + 대조군 8개 M-Scor
 data/corp_codes.csv       DART 전체 기업 목록 119,949개 (상장폐지 기업 포함)
 data/company_info.csv     기업개황 4,013개 (시장구분·업종코드·결산월, 2026-11-09 수집)
 data/dart_fs/             재무제표 캐시 ({corp_code}_{연도}.csv, 빈 파일 = 자료 없음)
+data/dart_doc/            사업보고서 원문 XML ({접수번호}/{접수번호}.xml)
+data/dart_audit/          감사의견·감사용역 API 원본
 data/pilot_control_map.csv  대조군 ID ↔ 실명 대응표 (현재 상장 기업, 절대 공개 금지)
 data/raw/kind_delisted_kospi.xls   KIND 상장폐지현황 유가증권 (2018-01-01~2026-11-06)
 data/raw/kind_delisted_kosdaq.xls  KIND 상장폐지현황 코스닥 (같은 기간)
@@ -97,7 +100,7 @@ KIND 엑셀은 실제로는 EUC-KR 인코딩 HTML 표다 (`labels.py`의 `_read_
 - 팀 공동 작업 (실무 주도: 강태욱): 연구 설계 문서, KIND 상장폐지 수집·분류, OpenDART 재무데이터 수집, M-Score 산출 코드, 계정명 표준화·결측 대체 기록
   → `src/dart.py`, `src/labels.py`, `src/mscore.py`
 - 임근영 담당: M-Score 유효성 검증, 텍스트·감사 신호 추가와 표준화·융합 종합 위험점수 기준 개발, 기업별 신호 기여도 표시 방식, 시점 정렬 원칙, 세 신호 융합 방향 제안
-  → `src/pilot.py`, `src/company.py`, `src/audit.py`, `src/standardize.py`, `src/fusion.py`, 이후 새 모듈
+  → `src/pilot.py`, `src/company.py`, `src/audit.py`, `src/disclosure.py`, `src/standardize.py`, `src/fusion.py`, 이후 새 모듈
 - **공동 작업 파일은 고치지 않는다.** 필요한 기능은 임근영 담당의 별도 모듈에 만들고 공동 모듈을 import해서 쓴다.
   공동 파일을 꼭 고쳐야 하면 먼저 묻는다
 - 임근영 담당 작업은 별도 커밋으로 올리고, 커밋 메시지에 담당 영역이 드러나게 쓴다
