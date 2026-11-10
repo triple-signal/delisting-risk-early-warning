@@ -25,7 +25,7 @@
 - Windows, PowerShell, VS Code
 - 경로: `C:\Users\tomvv\projects\delisting-risk-early-warning`
 - Python 3.14 가상환경 `.venv` (`py -3.14 -m venv .venv` → `.venv\Scripts\activate`)
-- 라이브러리: pandas, matplotlib, openpyxl, ipykernel, requests, python-dotenv (`requirements.txt`)
+- 라이브러리: pandas, matplotlib, openpyxl, ipykernel, requests, python-dotenv, scikit-learn (`requirements.txt`)
 - 노트북 커널은 `.venv` 선택. 노트북은 `notebooks/` 안에서 `sys.path.insert(0, "..")` 후 `from src... import`
 - `src` 파일을 고치면 노트북 Restart 필요
 - GitHub: Organization `triple-signal` / 레포 `delisting-risk-early-warning` (Public, 2026-11-10 전환)
@@ -46,6 +46,8 @@ src/labels.py             [공동] KIND 상장폐지 사유 분류: load_deliste
 src/pilot.py              [임근영] 파일럿 검증: pick_events(), run_pilot(), match_controls(), run_controls(), compare()
 src/company.py            [임근영] 기업개황·다중회사 자산총계: get_company_info(), get_total_assets()
 src/audit.py              [임근영] 감사 신호·강조사항: audit_vars()
+src/standardize.py        [임근영] 표준화: abnormal(), winsorize(), zscore(), fill_missing(), standardize()
+src/fusion.py             [임근영] 융합·평가: time_split(), fit_logit(), risk_score(), contributions(), evaluate(), boosting_check()
 notebooks/01_collect_test.ipynb   수집 테스트
 notebooks/02_mscore_test.ipynb    M-Score 계산 테스트 (대형 상장사 1곳)
 notebooks/03_pilot_mscore.ipynb   파일럿: 사건 8개 + 대조군 8개 M-Score 비교
@@ -95,7 +97,7 @@ KIND 엑셀은 실제로는 EUC-KR 인코딩 HTML 표다 (`labels.py`의 `_read_
 - 팀 공동 작업 (실무 주도: 강태욱): 연구 설계 문서, KIND 상장폐지 수집·분류, OpenDART 재무데이터 수집, M-Score 산출 코드, 계정명 표준화·결측 대체 기록
   → `src/dart.py`, `src/labels.py`, `src/mscore.py`
 - 임근영 담당: M-Score 유효성 검증, 텍스트·감사 신호 추가와 표준화·융합 종합 위험점수 기준 개발, 기업별 신호 기여도 표시 방식, 시점 정렬 원칙, 세 신호 융합 방향 제안
-  → `src/pilot.py`, `src/company.py`, `src/audit.py`, 이후 새 모듈(표준화·융합 등)
+  → `src/pilot.py`, `src/company.py`, `src/audit.py`, `src/standardize.py`, `src/fusion.py`, 이후 새 모듈
 - **공동 작업 파일은 고치지 않는다.** 필요한 기능은 임근영 담당의 별도 모듈에 만들고 공동 모듈을 import해서 쓴다.
   공동 파일을 꼭 고쳐야 하면 먼저 묻는다
 - 임근영 담당 작업은 별도 커밋으로 올리고, 커밋 메시지에 담당 영역이 드러나게 쓴다
