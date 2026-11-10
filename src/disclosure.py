@@ -5,6 +5,7 @@
 - T5 제재·소송: XI. 그 밖에 투자자 보호… 의 '우발부채 등', '제재 등' 항목에서 사실 정보 추출
 유사도는 우선 글자 2~3개 조각(n-gram) 빈도의 코사인 유사도로 계산한다 ([구현] 비교 기준. 임베딩 모델은 추후 추가)
 """
+import gzip
 import io
 import re
 import time
@@ -26,25 +27,31 @@ CASE_NO = r"\d{4}\s*(가합|가단|가소|나|다|하합|하단|회합|회단|�
 
 # ---------------- 원문 수집·읽기 ----------------
 def fetch_document(rcept_no):
-    """사업보고서 본문 XML을 data/dart_doc/{접수번호}/에 저장하고 경로 반환 (감사보고서 첨부는 저장하지 않음)"""
+    """사업보고서 본문 XML을 data/dart_doc/{접수번호}/{접수번호}.xml.gz로 압축 저장하고 경로 반환.
+    감사보고서 첨부는 저장하지 않는다. 예전에 압축 없이 받은 .xml이 있으면 그것을 쓴다"""
     d = DOC_DIR / str(rcept_no)
-    path = d / f"{rcept_no}.xml"
-    if path.exists():
-        return path
+    for path in (d / f"{rcept_no}.xml", d / f"{rcept_no}.xml.gz"):
+        if path.exists():
+            return path
     r = requests.get(f"{BASE}/document.xml", params={"crtfc_key": API_KEY, "rcept_no": rcept_no}, timeout=120)
     r.raise_for_status()
     if not zipfile.is_zipfile(io.BytesIO(r.content)):
         raise RuntimeError(f"원문 수집 오류 {rcept_no}: {r.text[:150]}")
     with zipfile.ZipFile(io.BytesIO(r.content)) as z:
+        name = f"{rcept_no}.xml"
+        if name not in z.namelist():   # 본문 파일 이름이 다른 경우: 첨부(_숫자)가 아닌 첫 xml
+            name = next(n for n in z.namelist() if n.endswith(".xml") and "_" not in n)
         d.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(z.read(f"{rcept_no}.xml"))
+        path.write_bytes(gzip.compress(z.read(name)))
     time.sleep(0.5)
     return path
 
 
 def load_xml(path):
-    """헤더에 utf-8이라 적혀 있어도 실제로는 EUC-KR인 파일이 있어 둘 다 시도한다"""
+    """압축(.gz) 여부를 자동 판단. 헤더에 utf-8이라 적혀 있어도 실제로는 EUC-KR인 파일이 있어 둘 다 시도한다"""
     b = path.read_bytes()
+    if str(path).endswith(".gz"):
+        b = gzip.decompress(b)
     try:
         return b.decode("utf-8")
     except UnicodeDecodeError:
