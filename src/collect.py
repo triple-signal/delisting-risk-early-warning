@@ -13,7 +13,9 @@
 import argparse
 import datetime as dt
 import json
+import os
 import re
+import subprocess
 import sys
 import time
 
@@ -32,6 +34,32 @@ DAILY_BUDGET = 18000             # [구현] DART 하루 한도(약 2만) 대비 
 INDEX_PATH = DATA_DIR / "filing_index.csv"
 LOG_PATH = DATA_DIR / "collect_log.json"
 FAIL_PATH = DATA_DIR / "collect_failed.csv"
+LOCK_PATH = DATA_DIR / "collect.lock"
+TASK_NAME = "DelistingRisk_Collect"   # Windows 작업 스케줄러 이름 (scripts/collect_daily.cmd 실행)
+
+
+# ---------------- 중복 실행 방지·예약 작업 정리 ----------------
+def acquire_lock():
+    """다른 수집이 돌고 있으면 False. 6시간 넘은 잠금 파일은 비정상 종료로 보고 지운다"""
+    if LOCK_PATH.exists() and time.time() - LOCK_PATH.stat().st_mtime > 6 * 3600:
+        LOCK_PATH.unlink()
+    try:
+        fd = os.open(LOCK_PATH, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+    except FileExistsError:
+        return False
+    os.write(fd, str(os.getpid()).encode())
+    os.close(fd)
+    return True
+
+
+def release_lock():
+    LOCK_PATH.unlink(missing_ok=True)
+
+
+def remove_scheduled_task():
+    """수집이 모두 끝나면 예약 작업을 스스로 삭제 (없으면 무시)"""
+    if os.name == "nt":
+        subprocess.run(["schtasks", "/Delete", "/TN", TASK_NAME, "/F"], capture_output=True)
 
 
 # ---------------- 호출 수 세기 ----------------
@@ -185,6 +213,9 @@ def main():
     ap.add_argument("--budget", type=int, default=DAILY_BUDGET, help="오늘 최대 호출 수")
     args = ap.parse_args()
 
+    if not args.status and not acquire_lock():
+        print(f"[{dt.datetime.now():%Y-%m-%d %H:%M}] 다른 수집이 이미 실행 중이라 종료합니다.")
+        return
     budget = Budget(args.budget)
     print(f"[{dt.datetime.now():%Y-%m-%d %H:%M}] 오늘 사용한 호출 수: {budget.used:,} / {budget.limit:,}")
     try:
@@ -217,13 +248,17 @@ def main():
             if i % 200 == 0:
                 print(f"   [{dt.datetime.now():%H:%M}] {stage} 진행 {i:,}/{len(todo):,} (오늘 호출 {budget.used:,})")
         print(status(idx))
-        print("\n수집이 모두 끝났습니다. 수집을 위해 바꾼 전원·절전 설정(덮개 닫기 등)이 있다면 원래대로 되돌리세요.")
+        remove_scheduled_task()
+        print("\n수집이 모두 끝났습니다. 자동 실행 예약도 삭제했습니다."
+              "\n수집을 위해 바꾼 전원·절전 설정(덮개 닫기 등)이 있다면 원래대로 되돌리세요.")
     except BudgetExhausted:
         print(f"\n오늘 호출 한도({budget.limit:,})에 도달해 멈춥니다. 내일 같은 명령으로 이어서 받으세요.")
     except KeyboardInterrupt:
         print("\n사용자가 중단했습니다. 같은 명령으로 이어서 받을 수 있습니다.")
     finally:
         budget.save()
+        if not args.status:
+            release_lock()
 
 
 if __name__ == "__main__":
