@@ -44,7 +44,7 @@ docs/research_design.md   연구 설계 기준 문서
 docs/HANDOFF.md           강태욱 인수인계 안내 (설치·자료 전달·담당 범위)
 src/dart.py               [공동] OpenDART API: get_corp_codes(), get_financials()
 src/mscore.py             [공동] Beneish M-Score 8변수: extract_items(), compute_mscore()
-src/labels.py             [공동] KIND 상장폐지 사유 분류: load_delisted()
+src/labels.py             [강태욱] KIND 상장폐지 사유 분류: load_delisted()
 src/pilot.py              [임근영] 파일럿 검증: pick_events(), run_pilot(), match_controls(), run_controls(), compare()
 src/company.py            [임근영] 기업개황·다중회사 자산총계: get_company_info(), get_total_assets()
 src/audit.py              [임근영] 감사 신호·강조사항: audit_vars()
@@ -105,12 +105,12 @@ KIND 엑셀은 실제로는 EUC-KR 인코딩 HTML 표다 (`labels.py`의 `_read_
 
 ## 역할 분담과 코드 소유 (이후 모든 작업과 기록은 이 구분을 따른다)
 
-- 팀 공동 작업 (실무 주도: 강태욱): 연구 설계 문서, KIND 상장폐지 수집·분류, OpenDART 재무데이터 수집, M-Score 산출 코드, 계정명 표준화·결측 대체 기록
-  → `src/dart.py`, `src/labels.py`, `src/mscore.py`
+- 팀 공동 작업 (실무 주도: 강태욱): 연구 설계 문서, OpenDART 재무데이터 수집, M-Score 산출 코드, 계정명 표준화·결측 대체 기록
+  → `src/dart.py`, `src/mscore.py`
 - 임근영 담당: M-Score 유효성 검증, 텍스트·감사 신호 추가와 표준화·융합 종합 위험점수 기준 개발, 기업별 신호 기여도 표시 방식, 시점 정렬 원칙, 세 신호 융합 방향 제안
   → `src/pilot.py`, `src/company.py`, `src/audit.py`, `src/disclosure.py`, `src/standardize.py`, `src/fusion.py`, 이후 새 모듈
-- 강태욱 담당 (2026-11-11부터): 수집 완료 자료 정리, 기업-연도 패널 구성(재무·감사·텍스트 신호 + 라벨 결합)
-  → 새 모듈 `src/panel.py` (이후 강태욱이 만드는 모듈 포함). 융합 모형·가설 검증은 계속 임근영 담당
+- 강태욱 담당: KIND 상장폐지 자료 수집·분류(431건 → 사건 156건), 수집 완료 자료 정리, 기업-연도 패널 구성(재무·감사·텍스트 신호 + 라벨 결합)
+  → `src/labels.py`, 새 모듈 `src/panel.py` (이후 강태욱이 만드는 모듈 포함). 융합 모형·가설 검증은 계속 임근영 담당
 - **작업자 확인**: 세션을 시작하면 `git config user.name`으로 작업자를 확인하고, 그 사람의 담당 모듈만 고친다.
   다른 사람 담당 모듈은 import해서 쓰기만 하고, 고쳐야 하면 먼저 묻는다
 - 커밋 메시지 앞에 담당자를 표시한다: `[임근영]`, `[강태욱]`. 각자 본인 GitHub 계정으로 커밋한다

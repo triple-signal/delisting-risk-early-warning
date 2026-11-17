@@ -75,7 +75,8 @@ PowerShell 터미널에서 순서대로 실행합니다.
 
 - 기준 문서는 `docs/research_design.md`. 연구 설계 결정(표본·라벨·변수·모형·기준값)은 팀과 정한 뒤 이 문서에 먼저 기록
 - **다른 사람 담당 모듈은 고치지 않고 import해서 씁니다.** 고쳐야 하면 먼저 담당자에게 말합니다
-  - 공동: `src/dart.py`, `src/labels.py`, `src/mscore.py`
+  - 공동: `src/dart.py`, `src/mscore.py`
+  - 강태욱 본인 담당: `src/labels.py`(KIND 상장폐지 분류), `src/panel.py`
   - 임근영: `src/pilot.py`, `src/company.py`, `src/audit.py`, `src/disclosure.py`, `src/standardize.py`, `src/fusion.py`, `src/collect.py`
 - 커밋 메시지 앞에 `[강태욱]` 표시, 본인 계정으로 커밋
 - `.env`, `data/`는 절대 GitHub에 올리지 않음
