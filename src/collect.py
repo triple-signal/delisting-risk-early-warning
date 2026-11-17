@@ -7,6 +7,7 @@
 단계: ① 사업보고서 목록 → ② 재무제표 → ③ 감사의견·감사용역 → ④ 사업보고서 원문
 - 이미 받은 자료는 건너뛴다 (언제 멈춰도 다음 실행에서 이어서 받음)
 - 하루 호출 수가 DAILY_BUDGET에 닿거나 DART가 '요청 제한 초과(020)'를 주면 멈춘다
+- 네트워크 오류가 MAX_NET_ERRORS번 연속되면 멈춘다 (절전·연결 끊김으로 붙잡혀 있지 않고 예약 실행에 넘김)
 - 상장사 기준 `[결정 2026-11-10]`: 해당 연도 사업보고서를 낸 회사 중 종목코드가
   현재 유가증권·코스닥 상장사 또는 KIND 2018년 이후 폐지 목록에 있는 회사
 """
@@ -36,6 +37,8 @@ LOG_PATH = DATA_DIR / "collect_log.json"
 FAIL_PATH = DATA_DIR / "collect_failed.csv"
 LOCK_PATH = DATA_DIR / "collect.lock"
 TASK_NAME = "DelistingRisk_Collect"   # Windows 작업 스케줄러 이름 (scripts/collect_daily.cmd 실행)
+MAX_NET_ERRORS = 30              # [구현] 네트워크 오류가 이만큼 연속되면 종료 → 잠금이 풀려 다음 예약 실행이 새로 시작
+NET_WAIT = 10                    # [구현] 네트워크 오류 뒤 기다리는 초
 
 
 # ---------------- 중복 실행 방지·예약 작업 정리 ----------------
@@ -90,6 +93,10 @@ class Budget:
 
 
 class BudgetExhausted(Exception):
+    pass
+
+
+class NetworkDown(Exception):
     pass
 
 
@@ -231,14 +238,20 @@ def main():
         failed = _failed()
         todo = [t for t in tasks(idx) if not _done(*t) and f"{t[0]}|{t[1]}|{t[2]}" not in failed]
         print(f"   남은 작업 {len(todo):,}건")
+        net_errors = 0     # 연속 네트워크 오류 수 (한 번이라도 성공하면 0으로)
         for i, (stage, corp, year, rcept) in enumerate(todo, 1):
             try:
                 run_task(stage, corp, year, rcept)
+                net_errors = 0
             except BudgetExhausted:
                 raise
             except requests.exceptions.RequestException as e:   # 일시적 네트워크 문제: 실패로 기록하지 않고 다음 실행 때 다시 시도
-                print(f"   네트워크 오류, 10초 후 계속: {str(e)[:80]}")
-                time.sleep(10)
+                net_errors += 1
+                print(f"   [{dt.datetime.now():%H:%M}] 네트워크 오류 {net_errors}/{MAX_NET_ERRORS}회 연속, "
+                      f"{NET_WAIT}초 후 계속: {str(e)[:80]}")
+                if net_errors >= MAX_NET_ERRORS:
+                    raise NetworkDown()
+                time.sleep(NET_WAIT)
             except Exception as e:
                 if _is_limit_error(e):
                     print("DART 요청 한도에 도달했습니다.")
@@ -253,6 +266,10 @@ def main():
               "\n수집을 위해 바꾼 전원·절전 설정(덮개 닫기 등)이 있다면 원래대로 되돌리세요.")
     except BudgetExhausted:
         print(f"\n오늘 호출 한도({budget.limit:,})에 도달해 멈춥니다. 내일 같은 명령으로 이어서 받으세요.")
+    except NetworkDown:
+        print(f"\n[{dt.datetime.now():%Y-%m-%d %H:%M}] 네트워크 오류가 {MAX_NET_ERRORS}회 연속되어 멈춥니다. "
+              "인터넷 연결을 확인하세요. 다음 예약 실행이나 같은 명령으로 이어서 받을 수 있습니다.")
+        return 1
     except KeyboardInterrupt:
         print("\n사용자가 중단했습니다. 같은 명령으로 이어서 받을 수 있습니다.")
     finally:
