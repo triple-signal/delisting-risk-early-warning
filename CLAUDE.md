@@ -57,7 +57,9 @@ notebooks/03_pilot_mscore.ipynb   파일럿: 사건 8개 + 대조군 8개 M-Scor
 data/corp_codes.csv       DART 전체 기업 목록 119,949개 (상장폐지 기업 포함)
 data/company_info.csv     기업개황 4,013개 (시장구분·업종코드·결산월, 2026-11-09 수집)
 data/dart_fs/             재무제표 캐시 ({corp_code}_{연도}.csv, 빈 파일 = 자료 없음)
-data/dart_doc/            사업보고서 원문 XML ({접수번호}/{접수번호}.xml)
+data/dart_doc/            사업보고서 원문 XML ({접수번호}/{접수번호}.xml.gz, 예전 파일은 압축 없는 .xml)
+data/filing_index.csv     수집 기준표: 기업-연도별 최초·최종 접수번호, 최초공시일, 정정횟수
+data/collect_failed.csv   수집 실패 목록 (실패가 있을 때만 생성)
 data/dart_audit/          감사의견·감사용역 API 원본
 data/pilot_control_map.csv  대조군 ID ↔ 실명 대응표 (현재 상장 기업, 절대 공개 금지)
 data/raw/kind_delisted_kospi.xls   KIND 상장폐지현황 유가증권 (2018-01-01~2026-11-06)
@@ -66,7 +68,7 @@ data/raw/kind_delisted_kosdaq.xls  KIND 상장폐지현황 코스닥 (같은 기
 
 KIND 엑셀은 실제로는 EUC-KR 인코딩 HTML 표다 (`labels.py`의 `_read_kind` 참고).
 
-## 진행 상황 (2026-11-10 기준)
+## 진행 상황 (2026-11-17 기준)
 
 완료
 - 개발 환경, GitHub 팀 레포(2026-11-10 공개 전환), DART 인증키
@@ -76,11 +78,14 @@ KIND 엑셀은 실제로는 EUC-KR 인코딩 HTML 표다 (`labels.py`의 `_read_
 - 감사 신호 `src/audit.py`: 감사인 교체, 감사시간·보수 변화, 계약 대비 초과율, 계속기업 불확실성, 강조사항 유형
 - 텍스트 신호 `src/disclosure.py`: MD&A 서술 변화(T3·T4), XI장 제재·소송·횡령배임·상폐 절차(T5). 파일럿에서 T5만 뚜렷한 차이
 - 표준화 `src/standardize.py`, 융합 `src/fusion.py`: 가상 자료로 동작 검증 완료, 실제 자료 적용 전
-- 전체 표본 수집 `src/collect.py` **진행 중**
+- 전체 표본 수집 `src/collect.py` **마무리 단계, 2026-11-18 완료 예정** (처음 예상 11-14에서 지연)
   - 대상: 3,016개 기업, 19,901 기업-연도(2018~2025), 원문은 2017년 포함 21,975건
-  - 하루 18,000호출씩, 11월 14일 전후 완료 예상. 임근영 노트북에서 Windows 예약 작업으로 2시간마다 자동 실행
+  - 11-17 현재: 재무제표 완료, 감사 약 93%, 원문 진행 중. 실패 0건
+  - 하루 18,000호출씩, 임근영 노트북에서 Windows 예약 작업으로 자동 실행 (완료 시 예약 작업 자동 삭제)
   - 진행 확인: `.venv\Scripts\python -m src.collect --status`
-  - 수집 자료(`data/`)는 GitHub에 없음. 다른 PC에서 이어 하려면 자료를 따로 전달받거나 본인 DART 키로 다시 수집
+  - 수집 자료(`data/`)는 GitHub에 없음. 완료 후 `data` 압축본(약 5~6GB)을 강태욱에게 구글 드라이브로 전달
+- 강태욱 인수인계 문서 갱신 (`docs/HANDOFF.md`, 11-17): 패널 구성 주의사항, 미정 항목 처리 방식
+  - 강태욱은 전달받은 `data/`로 작업하므로 DART 키는 선택. 추가 수집(실패 건, 2026 반기·분기보고서 등)은 임근영이 맡아 한 경로로 유지
 
 팀 결정 대기 (`[미정]`)
 - 시가총액 미달 4건(일정실업, 수성웹툰, 원풍물산, 코이즈)·"해산 사유 발생" 17건을 사건에 포함할지
