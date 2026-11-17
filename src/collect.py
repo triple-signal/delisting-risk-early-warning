@@ -42,10 +42,62 @@ NET_WAIT = 10                    # [구현] 네트워크 오류 뒤 기다리는
 
 
 # ---------------- 중복 실행 방지·예약 작업 정리 ----------------
+def _pid_alive(pid):
+    """그 PID의 python 프로세스가 살아 있는지. 프로세스에 신호를 보내지 않고 조회만 한다
+    (Windows에서 os.kill(pid, 0)은 프로세스를 종료시키므로 쓰지 않음)"""
+    if os.name != "nt":
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            return True
+        return True
+    import ctypes
+    from ctypes import wintypes
+    k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    k32.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+    k32.OpenProcess.restype = wintypes.HANDLE
+    k32.GetExitCodeProcess.argtypes = (wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD))
+    k32.QueryFullProcessImageNameW.argtypes = (wintypes.HANDLE, wintypes.DWORD,
+                                               wintypes.LPWSTR, ctypes.POINTER(wintypes.DWORD))
+    k32.CloseHandle.argtypes = (wintypes.HANDLE,)
+    h = k32.OpenProcess(0x1000, False, pid)          # PROCESS_QUERY_LIMITED_INFORMATION
+    if not h:
+        return ctypes.get_last_error() == 5          # 접근 거부 = 살아 있는 다른 계정 프로세스
+    try:
+        code = wintypes.DWORD()
+        if k32.GetExitCodeProcess(h, ctypes.byref(code)) and code.value != 259:   # 259 = 실행 중
+            return False
+        buf, size = ctypes.create_unicode_buffer(1024), wintypes.DWORD(1024)
+        if k32.QueryFullProcessImageNameW(h, 0, buf, ctypes.byref(size)):
+            return "python" in os.path.basename(buf.value).lower()   # PID가 다른 프로그램에 재사용된 경우 제외
+        return True
+    finally:
+        k32.CloseHandle(h)
+
+
+def _lock_is_stale():
+    """잠금 파일을 만든 수집이 이미 끝났는지. [구현] PID가 죽었거나 6시간이 지나면 끝난 것으로 본다"""
+    try:
+        age = time.time() - LOCK_PATH.stat().st_mtime
+        text = LOCK_PATH.read_text().strip()
+    except FileNotFoundError:
+        return False
+    if age > 6 * 3600:
+        return True
+    try:
+        pid = int(text)
+    except ValueError:
+        return age > 60          # 방금 만들어져 아직 PID를 쓰기 전일 수 있으므로 1분은 기다림
+    return not _pid_alive(pid)
+
+
 def acquire_lock():
-    """다른 수집이 돌고 있으면 False. 6시간 넘은 잠금 파일은 비정상 종료로 보고 지운다"""
-    if LOCK_PATH.exists() and time.time() - LOCK_PATH.stat().st_mtime > 6 * 3600:
-        LOCK_PATH.unlink()
+    """다른 수집이 돌고 있으면 False. 창 닫힘·절전 등으로 강제 종료돼 남은 잠금 파일은 지우고 시작한다"""
+    if LOCK_PATH.exists() and _lock_is_stale():
+        print(f"[{dt.datetime.now():%Y-%m-%d %H:%M}] 끝난 수집의 잠금 파일이 남아 있어 지우고 시작합니다.")
+        LOCK_PATH.unlink(missing_ok=True)
     try:
         fd = os.open(LOCK_PATH, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
     except FileExistsError:
